@@ -1,4 +1,4 @@
-FROM node:20 as build
+FROM node:20 AS build
 
 WORKDIR /app
 COPY package*.json ./
@@ -8,5 +8,3 @@ RUN npm run build
 
 FROM nginx:alpine
 COPY --from=build /app/build /usr/share/nginx/html
-
-# Optional: configure nginx to proxy /backend to backend container if needed
