@@ -1,0 +1,104 @@
+pipeline {
+    agent any
+
+    parameters {
+        choice(name: 'ENV', choices: ['dev', 'uat', 'prod'], description: 'Choose Environment')
+        booleanParam(name: 'DESTROY_INFRA', defaultValue: false, description: 'Destroy Infrastructure (Skip Apply)')
+    }
+
+    environment {
+        TF_ENV_DIR = "terraform/environment/${params.ENV}/${params.ENV}-infra"
+        TF_ADDON_DIR = "terraform/environment/${params.ENV}/eks-addons-install"
+        TF_VAR_FILE = "${TF_ADDON_DIR}/terraform.tfvars"
+        K8S_ENV = "k8s/${params.ENV}"
+        ENV_FILE = "equity-realestate-login-signup-api/.envs/.env.${params.ENV}"
+    }
+
+    stages {
+
+        stage('Terraform Init & Apply - Infra') {
+            when { expression { !params.DESTROY_INFRA } }
+            steps {
+                dir("${env.TF_ENV_DIR}") {
+                    sh 'terraform init'
+                    sh 'terraform plan'
+                    sh 'terraform apply -auto-approve'
+                }
+            }
+        }
+
+        stage('Extract VPC ID & Write to Addons Vars') {
+            when { expression { !params.DESTROY_INFRA } }
+            steps {
+                script {
+                    def vpc_id = sh(script: "cd ${env.TF_ENV_DIR} && terraform output -raw vpc_id", returnStdout: true).trim()
+
+                    sh """
+                        sed -i 's/^vpc_id *=.*/vpc_id = "${vpc_id}"/' ${env.TF_VAR_FILE}
+                    """
+                }
+            }
+        }
+
+        stage('Terraform Init & Apply - EKS Addons') {
+            when { expression { !params.DESTROY_INFRA } }
+            steps {
+                dir("${env.TF_ADDON_DIR}") {
+                    sh 'terraform init'
+                    sh 'terraform plan'
+                    sh 'terraform apply -auto-approve'
+                }
+            }
+        }
+
+        stage('Update Kubeconfig') {
+            when { expression { !params.DESTROY_INFRA } }
+            steps {
+                script {
+                    def cluster_name = sh(script: "grep cluster_name ${env.TF_VAR_FILE} | cut -d '=' -f2 | tr -d '\" '", returnStdout: true).trim()
+                    sh "eksctl utils write-kubeconfig --cluster ${cluster_name} --region us-west-1"
+                }
+            }
+        }
+
+        stage('Create ConfigMap') {
+            when { expression { !params.DESTROY_INFRA } }
+            steps {
+                sh "kubectl create configmap backend-env-file --from-file=${env.ENV_FILE} --dry-run=client -o yaml | kubectl apply -f -"
+            }
+        }
+
+        stage('Apply K8s Manifests') {
+            when { expression { !params.DESTROY_INFRA } }
+            steps {
+                sh "kubectl apply -f ${env.K8S_ENV}/"
+            }
+        }
+
+        stage('Destroy Infrastructure') {
+            when { expression { params.DESTROY_INFRA } }
+            steps {
+                script {
+                    def cluster_name = sh(script: "grep cluster_name ${env.TF_VAR_FILE} | cut -d '=' -f2 | tr -d '\" '", returnStdout: true).trim()
+
+                    // Run cleanup before terraform destroy
+                    sh """
+                        chmod +x ./terraform/cleanup_script.sh
+                        ./terraform/cleanup_script.sh ${cluster_name} us-west-1
+                    """
+                }
+
+                dir("${env.TF_ADDON_DIR}") {
+                    sh 'terraform init'
+                    sh 'terraform destroy -auto-approve || echo "Addons already destroyed or missing"'
+                }
+
+                dir("${env.TF_ENV_DIR}") {
+                    sh 'terraform init'
+                    sh 'terraform destroy -auto-approve || echo "Infra already destroyed or missing"'
+                }
+            }
+        }
+
+    }
+}

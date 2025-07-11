@@ -1,0 +1,28 @@
+# Terraform state
+*.tfstate
+*.tfstate.*
+.crash
+*.log
+*.tfvars.backup
+
+# Terraform plan files
+*.tfplan
+
+# .terraform directory
+.terraform/
+
+# Local .env or credentials
+.env
+*.pem
+*.key
+
+# IDE/editor files
+.vscode/
+.idea/
+*.swp
+*.bak
+*.tmp
+
+# OS-specific files
+.DS_Store
+Thumbs.db

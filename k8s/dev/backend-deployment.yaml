@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: equity-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: equity-backend
+  template:
+    metadata:
+      labels:
+        app: equity-backend
+    spec:
+      containers:
+        - name: backend
+          image: 248729599698.dkr.ecr.us-west-1.amazonaws.com/equity-realestate-dev:backend-dev-38
+          ports:
+            - containerPort: 5000
+          env:
+            - name: npm_lifecycle_event
+              value: dev  # Change this if needed (e.g. "dev")
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "250m"
+              memory: "256Mi"
+          volumeMounts:
+            - name: env-volume
+              mountPath: /var/www/html/api/.envs/.env.dev
+              subPath: .env.dev
+      volumes:
+        - name: env-volume
+          configMap:
+            name: backend-env-file
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+spec:
+  selector:
+    app: equity-backend
+  ports:
+    - port: 5000
+      targetPort: 5000
+  type: ClusterIP

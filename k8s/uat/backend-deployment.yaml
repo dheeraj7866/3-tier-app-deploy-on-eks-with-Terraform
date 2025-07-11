@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: equity-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: equity-backend
+  template:
+    metadata:
+      labels:
+        app: equity-backend
+    spec:
+      containers:
+        - name: backend
+          image: 248729599698.dkr.ecr.us-west-1.amazonaws.com/react-fund-dev:backend
+          ports:
+            - containerPort: 5000
+          env:
+            - name: npm_lifecycle_event
+              value: uat  # Change this if needed (e.g. "prod")
+          volumeMounts:
+            - name: env-volume
+              mountPath: /var/www/html/api/.envs/.env.uat
+              subPath: .env.uat
+      volumes:
+        - name: env-volume
+          configMap:
+            name: backend-env-file
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+spec:
+  selector:
+    app: equity-backend
+  ports:
+    - port: 5000
+      targetPort: 5000
+  type: ClusterIP
