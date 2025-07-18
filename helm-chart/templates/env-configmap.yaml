@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-env
+data:
+{{- range .Values.env.BACKEND_ENV }}
+  {{ .name }}: "{{ .value }}"
+{{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-env
+data:
+{{- range .Values.env.FRONTEND_ENV }}
+  {{ .name }}: "{{ .value }}"
+{{- end }}
