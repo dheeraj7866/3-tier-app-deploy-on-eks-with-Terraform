@@ -1,0 +1,106 @@
+name: Terraform Infra & EKS Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      ENV:
+        description: "Choose Environment"
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+          - uat
+          - prod
+      DESTROY_INFRA:
+        description: "Destroy Infrastructure (Skip Apply)"
+        required: true
+        default: false
+        type: boolean
+
+env:
+  TF_ENV_DIR: terraform/environment/${{ inputs.ENV }}/${{ inputs.ENV }}-infra
+  TF_ADDON_DIR: terraform/environment/${{ inputs.ENV }}/eks-addons-install
+  TF_VAR_FILE: terraform/environment/${{ inputs.ENV }}/eks-addons-install/terraform.tfvars
+  K8S_ENV: k8s/${{ inputs.ENV }}
+  ENV_FILE: equity-realestate-login-signup-api/.envs/.env.${{ inputs.ENV }}
+  AWS_REGION: us-west-1
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: 1.6.6
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    # ------------------ INFRA APPLY ------------------
+    - name: Terraform Init & Apply - Infra
+      if: ${{ inputs.DESTROY_INFRA == false }}
+      working-directory: ${{ env.TF_ENV_DIR }}
+      run: |
+        terraform init
+        terraform plan
+        terraform apply -auto-approve
+
+    - name: Extract VPC ID & Write to Addons Vars
+      if: ${{ inputs.DESTROY_INFRA == false }}
+      run: |
+        VPC_ID=$(cd $TF_ENV_DIR && terraform output -raw vpc_id)
+        sed -i "s/^vpc_id *=.*/vpc_id = \"${VPC_ID}\"/" $TF_VAR_FILE
+
+    - name: Terraform Init & Apply - EKS Addons
+      if: ${{ inputs.DESTROY_INFRA == false }}
+      working-directory: ${{ env.TF_ADDON_DIR }}
+      run: |
+        terraform init
+        terraform plan
+        terraform apply -auto-approve
+
+    # ------------------ KUBECONFIG ------------------
+    - name: Update Kubeconfig
+      if: ${{ inputs.DESTROY_INFRA == false }}
+      run: |
+        CLUSTER_NAME=$(grep cluster_name $TF_VAR_FILE | cut -d '=' -f2 | tr -d '" ')
+        aws eks update-kubeconfig --name $CLUSTER_NAME --region $AWS_REGION
+
+    - name: Create ConfigMap
+      if: ${{ inputs.DESTROY_INFRA == false }}
+      run: |
+        kubectl create configmap backend-env-file \
+        --from-file=$ENV_FILE \
+        --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Apply Kubernetes Manifests
+      if: ${{ inputs.DESTROY_INFRA == false }}
+      run: |
+        kubectl apply -f $K8S_ENV/
+
+    # ------------------ DESTROY ------------------
+    - name: Destroy Infrastructure
+      if: ${{ inputs.DESTROY_INFRA == true }}
+      run: |
+        CLUSTER_NAME=$(grep cluster_name $TF_VAR_FILE | cut -d '=' -f2 | tr -d '" ')
+
+        chmod +x terraform/cleanup_script.sh
+        ./terraform/cleanup_script.sh $CLUSTER_NAME $AWS_REGION
+
+        cd $TF_ADDON_DIR
+        terraform init
+        terraform destroy -auto-approve || echo "Addons already destroyed"
+
+        cd $GITHUB_WORKSPACE/$TF_ENV_DIR
+        terraform init
+        terraform destroy -auto-approve || echo "Infra already destroyed"
