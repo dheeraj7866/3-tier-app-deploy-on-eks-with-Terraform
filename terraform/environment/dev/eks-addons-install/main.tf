@@ -50,26 +50,26 @@ resource "helm_release" "metrics_server" {
 }
 
 module "namespace" {
-  source = "./modules/namespace"
+  source = "../../../modules/monitoring/namespace"
   name   = var.namespace
 }
 
 module "prometheus" {
-  source    = "./modules/prometheus"
+  source    = "../../../modules/monitoring/prometheus"
   namespace = var.namespace
 
   depends_on = [module.namespace]
 }
 
 module "loki" {
-  source    = "./modules/loki"
+  source    = "../../../modules/monitoring/loki"
   namespace = var.namespace
 
   depends_on = [module.namespace]
 }
 
 module "grafana" {
-  source = "./modules/grafana"
+  source = "../../../modules/monitoring/grafana"
 
   namespace           = var.namespace
   admin_password      = var.grafana_admin_password
