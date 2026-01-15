@@ -57,6 +57,9 @@ module "namespace" {
 module "prometheus" {
   source    = "../../../modules/monitoring/prometheus"
   namespace = var.namespace
+  grafana_admin_password      = var.grafana_admin_password
+  gmail_user          = var.gmail_user
+  gmail_app_password  = var.gmail_app_password
 
   depends_on = [module.namespace]
 }
@@ -68,14 +71,14 @@ module "loki" {
   depends_on = [module.namespace]
 }
 
-module "grafana" {
-  source = "../../../modules/monitoring/grafana"
+# module "grafana" {
+#   source = "../../../modules/monitoring/grafana"
 
-  namespace           = var.namespace
-  admin_password      = var.grafana_admin_password
-  gmail_user          = var.gmail_user
-  gmail_app_password  = var.gmail_app_password
+#   namespace           = var.namespace
+#   admin_password      = var.grafana_admin_password
+#   gmail_user          = var.gmail_user
+#   gmail_app_password  = var.gmail_app_password
 
-  depends_on = [module.prometheus]
-}
+#   depends_on = [module.prometheus]
+# }
 
