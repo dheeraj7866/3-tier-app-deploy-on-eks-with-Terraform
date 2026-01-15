@@ -13,13 +13,21 @@ variable "vpc_id" {
   type        = string
 }
 
-# variable "node_group_name" {
-#   description = "EKS Node group name"
-#   type        = string
-# }
+variable "namespace" {
+  default = "monitoring"
+}
 
-# variable "addon" {
-#   description = "Addon type (alb, ebs, autoscaler, metrics)"
-#   type        = string
-#   default     = ""
-# }
+variable "grafana_admin_password" {
+  type      = string
+  sensitive = true
+}
+
+variable "gmail_user" {
+  type      = string
+  sensitive = true
+}
+
+variable "gmail_app_password" {
+  type      = string
+  sensitive = true
+}

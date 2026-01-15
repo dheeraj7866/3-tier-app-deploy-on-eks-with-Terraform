@@ -56,7 +56,7 @@ pipeline {
             steps {
                 script {
                     def cluster_name = sh(script: "grep cluster_name ${env.TF_VAR_FILE} | cut -d '=' -f2 | tr -d '\" '", returnStdout: true).trim()
-                    sh "eksctl utils write-kubeconfig --cluster ${cluster_name} --region us-west-1"
+                    sh "eksctl utils write-kubeconfig --cluster ${cluster_name} --region ap-south-1"
                 }
             }
         }
@@ -84,7 +84,7 @@ pipeline {
                     // Run cleanup before terraform destroy
                     sh """
                         chmod +x ./terraform/cleanup_script.sh
-                        ./terraform/cleanup_script.sh ${cluster_name} us-west-1
+                        ./terraform/cleanup_script.sh ${cluster_name} ap-south-1
                     """
                 }
 
