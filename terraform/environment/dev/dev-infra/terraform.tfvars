@@ -7,8 +7,8 @@ private_subnet_cidrs = ["10.10.101.0/24", "10.10.102.0/24"]
 availability_zones = ["ap-south-1a", "ap-south-1b"]
 environment        = "dev"
 node_group_config = {
-  desired_capacity = 2
-  min_capacity     = 2
+  desired_capacity = 1
+  min_capacity     = 1
   max_capacity     = 5
   instance_types   = ["t2.medium"]
 }
