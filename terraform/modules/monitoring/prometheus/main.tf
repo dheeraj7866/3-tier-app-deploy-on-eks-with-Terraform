@@ -4,23 +4,25 @@ resource "helm_release" "prometheus" {
   repository = "https://prometheus-community.github.io/helm-charts"
   chart      = "kube-prometheus-stack"
 
-  timeout          = 900
-  wait             = true
-  atomic           = true
-  cleanup_on_fail  = true
+  timeout         = 900
+  wait            = true
+  atomic          = true
+  cleanup_on_fail = true
 
   values = [<<EOF
 grafana:
   enabled: true
   adminPassword: "${var.grafana_admin_password}"
 
+  envFromSecret: grafana-smtp-secret
+
   grafana.ini:
     smtp:
       enabled: true
       host: smtp.gmail.com:587
-      user: ${var.gmail_user}
-      password: ${var.gmail_app_password}
-      from_address: ${var.gmail_user}
+      user: $__env{GF_SMTP_USER}
+      password: $__env{GF_SMTP_PASSWORD}
+      from_address: $__env{GF_SMTP_USER}
       from_name: Grafana Alerts
 
 alertmanager:
@@ -31,4 +33,6 @@ prometheus:
     retention: 7d
 EOF
   ]
+
+  depends_on = [kubernetes_secret.grafana_smtp]
 }
