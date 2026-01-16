@@ -49,27 +49,27 @@ resource "helm_release" "metrics_server" {
   namespace  = "kube-system"
 }
 
-module "namespace" {
-  source = "../../../modules/monitoring/namespace"
-  name   = var.namespace
-}
+# module "namespace" {
+#   source = "../../../modules/monitoring/namespace"
+#   name   = var.namespace
+# }
 
-module "prometheus" {
-  source    = "../../../modules/monitoring/prometheus"
-  namespace = var.namespace
-  grafana_admin_password      = var.grafana_admin_password
-  gmail_user          = var.gmail_user
-  gmail_app_password  = var.gmail_app_password
+# module "prometheus" {
+#   source    = "../../../modules/monitoring/prometheus"
+#   namespace = var.namespace
+#   grafana_admin_password      = var.grafana_admin_password
+#   gmail_user          = var.gmail_user
+#   gmail_app_password  = var.gmail_app_password
 
-  depends_on = [module.namespace]
-}
+#   depends_on = [module.namespace]
+# }
 
-module "loki" {
-  source    = "../../../modules/monitoring/loki"
-  namespace = var.namespace
+# module "loki" {
+#   source    = "../../../modules/monitoring/loki"
+#   namespace = var.namespace
 
-  depends_on = [module.namespace]
-}
+#   depends_on = [module.namespace]
+# }
 
 # module "grafana" {
 #   source = "../../../modules/monitoring/grafana"
